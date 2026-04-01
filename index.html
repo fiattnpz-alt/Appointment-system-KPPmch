@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <base target="_top">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ลงทะเบียนผูกระบบนัดหมาย</title>
+
+    <link rel="stylesheet" href="style.css">
+
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+
+    <div class="container">
+        <div class="icon-wrapper">
+            <i class="fa-solid fa-hospital-user"></i>
+        </div>
+
+        <h2>ผูกระบบนัดโรงพยาบาล</h2>
+        <p class="subtitle">กรุณากรอกเลขประจำตัวประชาชน 13 หลัก<br>เพื่อรับแจ้งเตือนวันนัดหมายผ่าน LINE</p>
+
+        <div class="input-group">
+            <input type="text" id="hnOrId" placeholder="กรุณากรอกเลขบัตรประชาชน 13 หลัก" maxlength="13"
+                autocomplete="off">
+            <i class="fa-regular fa-id-card"></i>
+        </div>
+
+        <button id="submitBtn" onclick="registerUser()" disabled>
+            <div class="spinner dark-mode" id="btnSpinner"></div>
+            <span id="btnText">กำลังเชื่อมต่อระบบ...</span>
+        </button>
+
+        <p id="statusMsg"></p>
+    </div>
+
+    <script>
+        // --- ส่วนที่ต้องแก้ไข ---
+        const LIFF_ID = "2009669590-Sm5yxs7b"; // ใส่ LIFF ID ของคุณที่นี่
+        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyRBqVbJeOrNa8GR2TuzUE1npF3jU4j7ePI6BOf56zwWid9wPhXCE3f0Z6XWjAF1BiN/exec"; // ใส่ URL ของ Google Apps Script ที่นี่
+        // -----------------------
+
+        let lineUserId = "";
+        const btn = document.getElementById('submitBtn');
+        const btnText = document.getElementById('btnText');
+        const btnSpinner = document.getElementById('btnSpinner');
+        const msg = document.getElementById('statusMsg');
+
+        function displayMsg(text, isError) {
+            msg.innerText = text;
+            msg.className = isError ? 'show-msg error-text' : 'show-msg success-text';
+        }
+
+        async function main() {
+            try {
+                await liff.init({ liffId: LIFF_ID });
+                if (!liff.isLoggedIn()) {
+                    liff.login();
+                } else {
+                    const profile = await liff.getProfile();
+                    lineUserId = profile.userId;
+
+                    btnText.innerText = "ยืนยันการลงทะเบียน";
+                    btnSpinner.style.display = "none";
+                    btnSpinner.classList.remove('dark-mode');
+                    btn.disabled = false;
+                }
+            } catch (err) {
+                console.error(err);
+                displayMsg("ไม่สามารถเชื่อมต่อ LINE ได้ \n ติดต่อเจ้าหน้าที่", true);
+                btnText.innerText = "ข้อผิดพลาดระบบ";
+            }
+        }
+        main();
+
+        function registerUser() {
+            const hnOrId = document.getElementById('hnOrId').value.trim();
+
+            if (!hnOrId || hnOrId.length !== 13 || isNaN(hnOrId)) {
+                displayMsg("❗ กรุณากรอกเลขบัตรประชาชน 13 หลักให้ถูกต้อง", true);
+                return;
+            }
+
+            btnText.innerText = "กำลังบันทึกข้อมูล...";
+            btnSpinner.style.display = "block";
+            btn.disabled = true;
+            msg.className = "";
+
+            fetch(GAS_WEB_APP_URL, {
+                method: 'POST',
+                mode: 'no-cors', // แนะนำให้ใช้ no-cors สำหรับส่งข้อมูลไปยัง GAS แบบทางเดียว
+                body: JSON.stringify({ userId: lineUserId, hnOrId: hnOrId }),
+                headers: { 'Content-Type': 'application/json' }
+            })
+                .then(() => {
+                    // เนื่องจากใช้ no-cors เราจะไม่ได้รับ response body กลับมา 
+                    // แต่ถ้า fetch ไม่ throw error แสดงว่าส่งสำเร็จ
+                    displayMsg("✅ ผูกข้อมูลสำเร็จ! เตรียมรับแจ้งเตือนได้เลย", false);
+                    btnSpinner.style.display = "none";
+                    btnText.innerText = "เสร็จสมบูรณ์";
+                    setTimeout(() => { liff.closeWindow(); }, 2500);
+                })
+                .catch(err => {
+                    displayMsg("❌ ไม่สามารถติดต่อเซิร์ฟเวอร์ได้", true);
+                    resetButton();
+                });
+        }
+
+        function resetButton() {
+            btnText.innerText = "ยืนยันการลงทะเบียน";
+            btnSpinner.style.display = "none";
+            btn.disabled = false;
+        }
+    </script>
+</body>
+
+</html>
